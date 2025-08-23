@@ -1,0 +1,33 @@
+
+ @import 'bootstrap/dist/css/bootstrap.min.css';
+
+ .bg-primary {
+            background-color: #0a2164;
+        }
+
+        .text-primary {
+            color: #0a2164;
+        }
+
+        .border-primary {
+            border-color: #0a2164;
+        }
+
+        .btn-primary {
+            background-color: #0a2164;
+            color: white;
+        }
+
+        .btn-primary:hover {
+            background-color: #081a52;
+        }
+
+        .btn-outline {
+            border: 2px solid #0a2164;
+            color: #0a2164;
+        }
+
+        .btn-outline:hover {
+            background-color: #0a2164;
+            color: white;
+        }
