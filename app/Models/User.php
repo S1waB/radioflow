@@ -58,14 +58,27 @@ class User extends Authenticatable
     protected $appends = [
         'profile_photo_path',
     ];
+    public function teams()
+    {
+        return $this->belongsToMany(Team::class);
+    }
 
+    /**
+     * Get the tasks for the user.
+     */
+    public function tasks()
+    {
+        return $this->hasMany(Task::class, 'assigned_to');
+    }
     /**
      * Relationship: User belongs to a role.
      */
+
     public function role()
     {
-        return $this->belongsTo(Role::class);
+        return $this->belongsTo(Role::class, 'role_id');
     }
+
 
     /**
      * Relationship: User belongs to a radio (nullable).

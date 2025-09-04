@@ -1,308 +1,255 @@
 <?php
 
+use App\Models\Guest;
 use App\Models\User;
+use App\Models\Team;
+use App\Models\Task;
+use App\Models\Radio;
+use App\Models\Role;
 use Illuminate\Database\Seeder;
-use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Hash;
 
 class DatabaseSeeder extends Seeder
 {
     public function run(): void
     {
-        // Seed Roles
-        DB::table('roles')->insert([
-            ['name' => 'admin', 'description' => 'System Administrator', 'hierarchy_level' => 1, 'created_at' => now(), 'updated_at' => now()],
-            ['name' => 'directeur', 'description' => 'Radio Director', 'hierarchy_level' => 2, 'created_at' => now(), 'updated_at' => now()],
-            ['name' => 'Editor-in-Chief', 'description' => 'Editor in Chief', 'hierarchy_level' => 3, 'created_at' => now(), 'updated_at' => now()],
-            ['name' => 'Manager', 'description' => 'Department Manager', 'hierarchy_level' => 4, 'created_at' => now(), 'updated_at' => now()],
-            ['name' => 'journaliste', 'description' => 'Journalist', 'hierarchy_level' => 5, 'created_at' => now(), 'updated_at' => now()],
-            ['name' => 'animateur', 'description' => 'Radio Host', 'hierarchy_level' => 6, 'created_at' => now(), 'updated_at' => now()],
-            ['name' => 'chroniqueur', 'description' => 'Columnist', 'hierarchy_level' => 7, 'created_at' => now(), 'updated_at' => now()],
-            ['name' => 'tech staff', 'description' => 'Technical Staff', 'hierarchy_level' => 8, 'created_at' => now(), 'updated_at' => now()],
-            ['name' => 'Digital', 'description' => 'Digital Team', 'hierarchy_level' => 9, 'created_at' => now(), 'updated_at' => now()],
-            ['name' => 'Production', 'description' => 'Production Team', 'hierarchy_level' => 10, 'created_at' => now(), 'updated_at' => now()],
+        // 1️⃣ Create General Admin Radio
+        $adminRadio = Radio::create([
+            'name' => 'Radio Flow Administration',
+            'description' => 'System-wide administration',
+            'phone_number' => '+21650000001',
+            'address' => 'HQ Tunis',
+            'Country' => 'Tunisia',
+            'status' => 'active',
         ]);
 
-        // Create Admin User (no radio)
-        User::create([
+        // 2️⃣ Seed global admin role
+        $adminRole = Role::create([
+            'name' => 'admin',
+            'description' => 'System Administrator',
+            'hierarchy_level' => 1,
+            'radio_id' => $adminRadio->id,
+        ]);
+
+        // 3️⃣ Create Admin User
+        $admin = User::create([
             'name' => 'System Admin',
             'email' => 'admin@radioflow.com',
             'password' => Hash::make('password'),
-            'role_id' => DB::table('roles')->where('name', 'admin')->value('id'),
-            'phone_number' => '+216 50 111 222',
-            'address' => 'Admin Headquarters, Tunis',
-            'bio' => 'System administrator with full access rights',
+            'role_id' => $adminRole->id,
+            'radio_id' => $adminRadio->id,
+            'phone_number' => '+21650000000',
+            'bio' => 'Super admin with full access',
         ]);
 
-        // Create 2 Manager Users FIRST (so we can reference them in radio)
+        // 4️⃣ Create Radio One & Two
+        $radio1 = Radio::create([
+            'name' => 'Radio One',
+            'description' => 'Music and Talk shows',
+            'phone_number' => '+21671111111',
+            'address' => 'Tunis Center',
+            'Country' => 'Tunisia',
+            'status' => 'active',
+        ]);
+
+        $radio2 = Radio::create([
+            'name' => 'Radio Two',
+            'description' => 'Youth and Sports',
+            'phone_number' => '+21672222222',
+            'address' => 'Sfax Center',
+            'Country' => 'Tunisia',
+            'status' => 'active',
+        ]);
+
+        // 5️⃣ Seed roles for Radio One
+        $rolesRadio1 = [
+            ['directeur', 2, 'Director of Radio One'],
+            ['animateur', 3, 'Radio Host'],
+            ['journaliste', 4, 'Journalist'],
+            ['tech staff', 5, 'Technical Staff'],
+        ];
+
+        foreach ($rolesRadio1 as $r) {
+            Role::create([
+                'name' => $r[0],
+                'hierarchy_level' => $r[1],
+                'description' => $r[2],
+                'radio_id' => $radio1->id,
+            ]);
+        }
+
+        // 6️⃣ Seed roles for Radio Two
+        $rolesRadio2 = [
+            ['directeur', 2, 'Director of Radio Two'],
+            ['animateur', 3, 'Radio Host'],
+            ['journaliste', 4, 'Journalist'],
+            ['tech staff', 5, 'Technical Staff'],
+        ];
+
+        foreach ($rolesRadio2 as $r) {
+            Role::create([
+                'name' => $r[0],
+                'hierarchy_level' => $r[1],
+                'description' => $r[2],
+                'radio_id' => $radio2->id,
+            ]);
+        }
+
+        // 7️⃣ Create Managers
         $manager1 = User::create([
-            'name' => 'Ahmed Radio1 Manager',
+            'name' => 'Ali Manager',
             'email' => 'manager1@radio.com',
             'password' => Hash::make('password'),
-            'role_id' => DB::table('roles')->where('name', 'Manager')->value('id'),
-            'phone_number' => '+216 20 123 456',
-            'address' => 'Radio FM Plus Studio, Tunis',
-            'bio' => 'Manager of Radio FM Plus with 10 years experience',
+            'role_id' => Role::where(['radio_id' => $radio1->id, 'name' => 'directeur'])->value('id'),
+            'radio_id' => $radio1->id,
+            'phone_number' => '+21620000001',
+            'bio' => 'Director of Radio One',
         ]);
 
         $manager2 = User::create([
-            'name' => 'Fatma Radio2 Manager',
+            'name' => 'Mouna Manager',
             'email' => 'manager2@radio.com',
             'password' => Hash::make('password'),
-            'role_id' => DB::table('roles')->where('name', 'Manager')->value('id'),
-            'phone_number' => '+216 99 888 777',
-            'address' => 'Radio Jeunesse HQ, Sfax',
-            'bio' => 'Young and dynamic manager leading Radio Jeunesse',
+            'role_id' => Role::where(['radio_id' => $radio2->id, 'name' => 'directeur'])->value('id'),
+            'radio_id' => $radio2->id,
+            'phone_number' => '+21620000002',
+            'bio' => 'Director of Radio Two',
         ]);
 
-        // Create Radios using manager_id
-        $radio1Id = DB::table('radios')->insertGetId([
-            'name' => 'Radio FM Plus',
-            'description' => 'The leading music and news station in the region',
-            'phone_number' => '+216 70 123 456',
-            'address' => '123 Media Street, Tunis, Tunisia',
-            'Country' => 'Tunisia',
-            'status' => 'active',
-            'manager_id' => $manager1->id,
-            'created_at' => now(),
-            'updated_at' => now(),
-        ]);
+        $radio1->manager_id = $manager1->id;
+        $radio1->save();
+        $radio2->manager_id = $manager2->id;
+        $radio2->save();
 
-        $radio2Id = DB::table('radios')->insertGetId([
-            'name' => 'Radio Jeunesse',
-            'description' => 'Youth-focused radio station with modern programming',
-            'phone_number' => '+216 98 765 432',
-            'address' => '456 Youth Avenue, Sousse, Tunisia',
-            'Country' => 'Tunisia',
-            'status' => 'active',
-            'manager_id' => $manager2->id,
-            'created_at' => now(),
-            'updated_at' => now(),
-        ]);
-
-        // Now update managers to link to their radio_id (if needed)
-        $manager1->update(['radio_id' => $radio1Id]);
-        $manager2->update(['radio_id' => $radio2Id]);
-
-        // Add team members for Radio 1
-        User::create([
-            'name' => 'Leila Radio1 Animateur',
-            'email' => 'animateur1@radio.com',
+        // 8️⃣ Add other Users
+        $user1 = User::create([
+            'name' => 'Hichem Animateur',
+            'email' => 'animateur@radio.com',
             'password' => Hash::make('password'),
-            'role_id' => DB::table('roles')->where('name', 'animateur')->value('id'),
-            'radio_id' => $radio1Id,
-            'phone_number' => '+216 22 333 444',
-            'address' => 'Sousse, Tunisia',
-            'bio' => 'Radio host specializing in morning shows',
+            'role_id' => Role::where(['radio_id' => $radio1->id, 'name' => 'animateur'])->value('id'),
+            'radio_id' => $radio1->id,
+            'phone_number' => '+21630000001',
+            'bio' => 'Morning show host',
         ]);
 
-        User::create([
-            'name' => 'Samir Radio1 Tech',
-            'email' => 'tech1@radio.com',
+        $user2 = User::create([
+            'name' => 'Sami Journaliste',
+            'email' => 'journaliste@radio.com',
             'password' => Hash::make('password'),
-            'role_id' => DB::table('roles')->where('name', 'tech staff')->value('id'),
-            'radio_id' => $radio1Id,
-            'phone_number' => '+216 55 666 777',
-            'bio' => 'Technical engineer maintaining broadcast equipment',
+            'role_id' => Role::where(['radio_id' => $radio2->id, 'name' => 'journaliste'])->value('id'),
+            'radio_id' => $radio2->id,
+            'phone_number' => '+21630000002',
+            'bio' => 'Local news reporter',
         ]);
 
-        // Add team members for Radio 2
-        User::create([
-            'name' => 'Youssef Radio2 Journaliste',
-            'email' => 'journaliste2@radio.com',
+        $user3 = User::create([
+            'name' => 'Fathi Tech',
+            'email' => 'tech@radio.com',
             'password' => Hash::make('password'),
-            'role_id' => DB::table('roles')->where('name', 'journaliste')->value('id'),
-            'radio_id' => $radio2Id,
-            'phone_number' => '+216 23 456 789',
-            'bio' => 'Investigative journalist covering youth culture',
+            'role_id' => Role::where(['radio_id' => $radio1->id, 'name' => 'tech staff'])->value('id'),
+            'radio_id' => $radio1->id,
+            'phone_number' => '+21630000003',
+            'bio' => 'Sound engineer',
         ]);
 
-        User::create([
-            'name' => 'Nadia Radio2 Digital',
-            'email' => 'digital2@radio.com',
-            'password' => Hash::make('password'),
-            'role_id' => DB::table('roles')->where('name', 'Digital')->value('id'),
-            'radio_id' => $radio2Id,
-            'phone_number' => '+216 29 876 543',
-            'address' => 'Ariana, Tunisia',
-            'bio' => 'Digital content creator and social media manager',
+        // 9️⃣ Create Teams
+        $team1 = Team::create(['name' => 'Morning Show Team', 'description' => 'Morning shows for Radio One', 'radio_id' => $radio1->id]);
+        $team2 = Team::create(['name' => 'Tech Team', 'description' => 'Technical operations', 'radio_id' => $radio1->id]);
+        $team3 = Team::create(['name' => 'News Team', 'description' => 'Local and international news', 'radio_id' => $radio2->id]);
+        $team4 = Team::create(['name' => 'Sports Team', 'description' => 'Sports coverage team', 'radio_id' => $radio2->id]);
+        $team5 = Team::create(['name' => 'Digital Team', 'description' => 'Digital & social media', 'radio_id' => $radio2->id]);
+
+        // Attach team members
+        $team1->users()->attach([$manager1->id, $user1->id]);
+        $team2->users()->attach([$user3->id]);
+        $team3->users()->attach([$manager2->id, $user2->id]);
+
+        // 10️⃣ Create Tasks
+        Task::create([
+            'title' => 'Prepare Morning Script',
+            'description' => 'Script for Monday morning show',
+            'owner_id' => $manager1->id,
+            'assigned_to' => $user1->id,
+            'team_id' => $team1->id,
+            'radio_id' => $radio1->id,
+            'status' => 'todo',
+            'deadline' => now()->addDay(),
         ]);
 
-        
-        // Create sample radio demands
-        DB::table('radio_demands')->insert([
+        Task::create([
+            'title' => 'Check Equipment',
+            'description' => 'Check microphones and mixers',
+            'owner_id' => $manager1->id,
+            'assigned_to' => $user3->id,
+            'team_id' => $team2->id,
+            'radio_id' => $radio1->id,
+            'status' => 'pending',
+            'deadline' => now()->addDays(2),
+        ]);
+
+        Task::create([
+            'title' => 'Cover Local News',
+            'description' => 'Report on city council',
+            'owner_id' => $manager2->id,
+            'assigned_to' => $user2->id,
+            'team_id' => $team3->id,
+            'radio_id' => $radio2->id,
+            'status' => 'done',
+            'deadline' => now()->subDay(),
+        ]);
+        // 11️⃣ Create Guests for Radio One
+        $guestsRadio1 = [
             [
-                'radio_name' => 'Radio Culture FM',
-                'description' => 'New cultural radio station focusing on arts and heritage',
-                'founding_date' => '2023-06-15',
-                'manager_name' => 'Mohamed Ben Ali',
-                'manager_email' => 'mohamed.culturefm@example.com',
-                'manager_phone' => '+216 50 123 456',
-                'status' => 'pending',
-                'team_members' => json_encode([
-                    [
-                        'name' => 'Amina Belhaj',
-                        'email' => 'amina.culture@example.com',
-                        'phone' => '+216 22 111 222',
-                        'role' => 'animateur'
-                    ],
-                    [
-                        'name' => 'Karim Trabelsi',
-                        'email' => 'karim.culture@example.com',
-                        'phone' => '+216 98 765 432',
-                        'role' => 'journaliste'
-                    ],
-                    [
-                        'name' => 'Salma Abid',
-                        'email' => 'salma.culture@example.com',
-                        'phone' => '+216 55 444 333',
-                        'role' => 'chroniqueur'
-                    ],
-                    [
-                        'name' => 'Youssef Hammami',
-                        'email' => 'youssef.culture@example.com',
-                        'phone' => '+216 29 888 777',
-                        'role' => 'tech staff'
-                    ],
-                    [
-                        'name' => 'Houda Ferchichi',
-                        'email' => 'houda.culture@example.com',
-                        'phone' => '+216 23 456 789',
-                        'role' => 'Digital'
-                    ]
-                ]),
-                'created_at' => now(),
-                'updated_at' => now()
+                'first_name' => 'Sofien',
+                'last_name' => 'Ben Ali',
+                'email' => 'sofien.guest1@radio.com',
+                'phone_number' => '+21640000001',
+                'address' => 'Tunis, Avenue Habib Bourguiba',
+                'description' => 'Frequent music guest',
+                'profile_photo' => 'default-profile.png'
             ],
             [
-                'radio_name' => 'Radio Sport Plus',
-                'description' => '24/7 sports coverage and live commentary',
-                'founding_date' => '2023-07-01',
-                'manager_name' => 'Ali Ben Amor',
-                'manager_email' => 'ali.sportplus@example.com',
-                'manager_phone' => '+216 98 123 456',
-                'status' => 'in_process',
-                'team_members' => json_encode([
-                    [
-                        'name' => 'Samir Gharbi',
-                        'email' => 'samir.sport@example.com',
-                        'phone' => '+216 20 111 222',
-                        'role' => 'animateur'
-                    ],
-                    [
-                        'name' => 'Fatma Ben Youssef',
-                        'email' => 'fatma.sport@example.com',
-                        'phone' => '+216 50 765 432',
-                        'role' => 'journaliste'
-                    ],
-                    [
-                        'name' => 'Houssem Trabelsi',
-                        'email' => 'houssem.sport@example.com',
-                        'phone' => '+216 22 444 333',
-                        'role' => 'chroniqueur'
-                    ],
-                    [
-                        'name' => 'Rami Ben Salah',
-                        'email' => 'rami.sport@example.com',
-                        'phone' => '+216 99 888 777',
-                        'role' => 'tech staff'
-                    ],
-                    [
-                        'name' => 'Nadia Khemiri',
-                        'email' => 'nadia.sport@example.com',
-                        'phone' => '+216 23 456 789',
-                        'role' => 'Digital'
-                    ]
-                ]),
-                'created_at' => now(),
-                'updated_at' => now()
+                'first_name' => 'Amina',
+                'last_name' => 'Trabelsi',
+                'email' => 'amina.guest2@radio.com',
+                'phone_number' => '+21640000002',
+                'address' => 'Tunis, Rue de la Liberté',
+                'description' => 'Talk show guest',
+                'profile_photo' => 'default-profile.png'
+            ],
+        ];
+
+        foreach ($guestsRadio1 as $g) {
+            Guest::create(array_merge($g, ['radio_id' => $radio1->id]));
+        }
+
+        // 12️⃣ Create Guests for Radio Two
+        $guestsRadio2 = [
+            [
+                'first_name' => 'Khaled',
+                'last_name' => 'Haddad',
+                'email' => 'khaled.guest1@radio.com',
+                'phone_number' => '+21650000001',
+                'address' => 'Sfax, Boulevard 7 Novembre',
+                'description' => 'Sports commentator',
+                'profile_photo' => 'default-profile.png'
             ],
             [
-                'radio_name' => 'Radio Business TN',
-                'description' => 'Financial news and business analysis',
-                'founding_date' => '2023-08-10',
-                'manager_name' => 'Salma Ben Ahmed',
-                'manager_email' => 'salma.businesstn@example.com',
-                'manager_phone' => '+216 55 123 456',
-                'status' => 'approved',
-                'team_members' => json_encode([
-                    [
-                        'name' => 'Walid Ben Hassen',
-                        'email' => 'walid.business@example.com',
-                        'phone' => '+216 29 111 222',
-                        'role' => 'animateur'
-                    ],
-                    [
-                        'name' => 'Amira Ben Youssef',
-                        'email' => 'amira.business@example.com',
-                        'phone' => '+216 98 765 432',
-                        'role' => 'journaliste'
-                    ],
-                    [
-                        'name' => 'Karim Ben Amor',
-                        'email' => 'karim.business@example.com',
-                        'phone' => '+216 22 444 333',
-                        'role' => 'chroniqueur'
-                    ],
-                    [
-                        'name' => 'Yassine Hammouda',
-                        'email' => 'yassine.business@example.com',
-                        'phone' => '+216 50 888 777',
-                        'role' => 'tech staff'
-                    ],
-                    [
-                        'name' => 'Leila Ben Abdallah',
-                        'email' => 'leila.business@example.com',
-                        'phone' => '+216 23 456 789',
-                        'role' => 'Digital'
-                    ]
-                ]),
-                'created_at' => now(),
-                'updated_at' => now()
+                'first_name' => 'Lina',
+                'last_name' => 'Mahmoud',
+                'email' => 'lina.guest2@radio.com',
+                'phone_number' => '+21650000002',
+                'address' => 'Sfax, Avenue Habib Bourguiba',
+                'description' => 'News segment guest',
+                'profile_photo' => 'default-profile.png'
             ],
-            [
-                'radio_name' => 'Radio Santé',
-                'description' => 'Health and wellness radio station',
-                'founding_date' => '2023-09-05',
-                'manager_name' => 'Dr. Hatem Ben Salah',
-                'manager_email' => 'hatem.radiohealth@example.com',
-                'manager_phone' => '+216 70 123 456',
-                'status' => 'rejected',
-                'team_members' => json_encode([
-                    [
-                        'name' => 'Dr. Amina Ben Ali',
-                        'email' => 'amina.health@example.com',
-                        'phone' => '+216 22 111 222',
-                        'role' => 'animateur'
-                    ],
-                    [
-                        'name' => 'Dr. Samir Trabelsi',
-                        'email' => 'samir.health@example.com',
-                        'phone' => '+216 98 765 432',
-                        'role' => 'journaliste'
-                    ],
-                    [
-                        'name' => 'Dr. Fatma Ben Amor',
-                        'email' => 'fatma.health@example.com',
-                        'phone' => '+216 55 444 333',
-                        'role' => 'chroniqueur'
-                    ],
-                    [
-                        'name' => 'Youssef Ben Youssef',
-                        'email' => 'youssef.health@example.com',
-                        'phone' => '+216 29 888 777',
-                        'role' => 'tech staff'
-                    ],
-                    [
-                        'name' => 'Nadia Ben Hassen',
-                        'email' => 'nadia.health@example.com',
-                        'phone' => '+216 23 456 789',
-                        'role' => 'Digital'
-                    ]
-                ]),
-                'created_at' => now(),
-                'updated_at' => now()
-            ]
-        ]);
+        ];
+
+        foreach ($guestsRadio2 as $g) {
+            Guest::create(array_merge($g, ['radio_id' => $radio2->id]));
+        }
+
+        $this->command->info('BOSS : Guests have been seeded for Radio One and Radio Two!');
+        $this->command->info('BOSS :  Database seeded with radios, roles, users, teams, and tasks!');
     }
 }

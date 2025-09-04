@@ -25,6 +25,8 @@ class Radio extends Model
     public const STATUS_ACTIVE = 'active';
     public const STATUS_DESACTIVE = 'desactive';
 
+
+
     public function isActive(): bool
     {
         return $this->status === self::STATUS_ACTIVE;
@@ -41,11 +43,20 @@ class Radio extends Model
         return $this->belongsTo(User::class, 'manager_id');
     }
 
-    //  Radio has many employees (users)
-    public function team(): HasMany
+    // Radio has many teams
+    public function teams(): HasMany
     {
-        return $this->hasMany(User::class, 'radio_id')->where('id', '<>', $this->manager_id);
+        return $this->hasMany(Team::class);
     }
+
+    // Radio has many employees (users excluding manager)
+    public function users(): HasMany
+    {
+        return $this->hasMany(User::class, 'radio_id')
+            ->where('id', '<>', $this->manager_id);
+    }
+
+
     // Use this to get logo_path by $radio->logo
     public function getLogoAttribute()
     {
@@ -57,4 +68,18 @@ class Radio extends Model
     {
         return $this->logo_path ? asset('storage/' . $this->logo_path) : null;
     }
+
+        /**
+     * Get all guests for this radio.
+     */
+    public function guests()
+    {
+        return $this->hasMany(Guest::class);
+    }
+
+    public function songs()
+    {
+        return $this->hasMany(Song::class);
+    }
+    
 }

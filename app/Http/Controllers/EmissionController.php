@@ -1,0 +1,100 @@
+<?php
+
+namespace App\Http\Controllers;
+
+use App\Models\Emission;
+use App\Models\Radio;
+use App\Models\User;
+use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Storage;
+
+class EmissionController extends Controller
+{
+    // List all emissions of a radio
+    public function index(Radio $radio)
+    {
+        $types = Emission::select('type')->distinct()->pluck('type'); // all distinct emission types
+        $animateurs = $radio->members; // or however you get animateurs
+        $emissions = Emission::where('radio_id', $radio->id);
+
+        if ($search = request('search')) {
+            $emissions->where('name', 'like', "%{$search}%");
+        }
+
+        if ($type = request('type')) {
+            $emissions->where('type', $type);
+        }
+
+        $animateurs = User::whereHas('role', function ($query) use ($radio) {
+            $query->where('radio_id', $radio->id)->where('name', 'animateur');
+        })->get();
+
+
+
+        $emissions = $emissions->orderBy('created_at', 'desc')->paginate(10)->withQueryString();
+
+        return view('emissions.index', compact('radio', 'emissions', 'types', 'animateurs'));
+    }
+
+
+    // Show emission details
+    public function show(Radio $radio, Emission $emission)
+    {
+        $emission->load(['seasons.episodes', 'members', 'animateur', 'materials']);
+        return view('emissions.show', compact('radio', 'emission'));
+    }
+
+    // Store new emission
+    public function store(Request $request, Radio $radio)
+    {
+        $validated = $request->validate([
+            'name' => 'required|string|max:255',
+            'animateur_id' => 'nullable|exists:users,id',
+            'type' => 'nullable|string|max:255',
+            'duration_minutes' => 'nullable|integer',
+            'description' => 'nullable|string',
+            'logo' => 'nullable|image|max:2048',
+        ]);
+
+        if ($request->hasFile('logo')) {
+            $validated['logo_path'] = $request->file('logo')->store('emission_logos', 'public');
+        }
+
+        $validated['radio_id'] = $radio->id;
+
+        Emission::create($validated);
+
+        return back()->with('success', 'Emission created successfully!');
+    }
+
+    // Update emission
+    public function update(Request $request, Radio $radio, Emission $emission)
+    {
+        $validated = $request->validate([
+            'name' => 'required|string|max:255',
+            'animateur_id' => 'nullable|exists:users,id',
+            'type' => 'nullable|string|max:255',
+            'duration_minutes' => 'nullable|integer',
+            'description' => 'nullable|string',
+            'logo' => 'nullable|image|max:2048',
+        ]);
+
+        if ($request->hasFile('logo')) {
+            if ($emission->logo_path) {
+                Storage::disk('public')->delete($emission->logo_path);
+            }
+            $validated['logo_path'] = $request->file('logo')->store('emission_logos', 'public');
+        }
+
+        $emission->update($validated);
+
+        return back()->with('success', 'Emission updated successfully!');
+    }
+
+    // Delete emission
+    public function destroy(Radio $radio, Emission $emission)
+    {
+        $emission->delete();
+        return back()->with('success', 'Emission deleted successfully!');
+    }
+}

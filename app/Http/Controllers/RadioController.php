@@ -5,6 +5,7 @@ namespace App\Http\Controllers;
 use App\Models\Radio;
 use App\Models\Role;
 use App\Models\User;
+use App\Models\Team;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Storage;
 
@@ -12,8 +13,8 @@ class RadioController extends Controller
 {
     public function index()
     {
-        $query = Radio::query()->with(['manager', 'team']); // Eager load manager and team
-        //  Search via GET
+        $query = Radio::query()->with(['manager', 'teams']);
+
         if ($search = request()->get('search')) {
             $query->where(function ($q) use ($search) {
                 $q->where('name', 'like', "%{$search}%")
@@ -24,12 +25,10 @@ class RadioController extends Controller
             });
         }
 
-        //  Filter by status via GET
         if ($status = request()->get('status')) {
             $query->where('status', $status);
         }
 
-        //  Paginate
         $radios = $query->orderBy('created_at', 'desc')->paginate(10);
 
         return view('radios.index', compact('radios'));
@@ -37,11 +36,9 @@ class RadioController extends Controller
 
     public function create()
     {
-        // Get users who have the 'manager' role and are not already assigned as radio managers
         $availableManagers = User::whereHas('role', function ($query) {
             $query->where('name', 'manager');
-        })
-            ->whereDoesntHave('managedRadio') // Assumes 'managedRadio' is the inverse relation from User -> Radio
+        })->whereDoesntHave('managedRadio')
             ->get();
 
         return view('radios.create', compact('availableManagers'));
@@ -56,32 +53,44 @@ class RadioController extends Controller
             'address' => 'nullable|string|max:255',
             'Country' => 'required|string|max:255',
             'manager_id' => 'nullable|exists:users,id',
-            'status' => 'required|in:active,inactive',
-            'logo' => 'nullable|image|mimes:jpeg,png,jpg,gif|max:8048', // <-- match input name here
+            'status' => 'required|in:active,desactive', // Fixed: changed 'inactive' to 'desactive'
+            'logo' => 'nullable|image|mimes:jpeg,png,jpg,gif|max:8048',
         ]);
 
         $data = $request->except('logo');
 
         if ($request->hasFile('logo')) {
-            // Store file and save path in 'logo_path' key
             $data['logo_path'] = $request->file('logo')->store('radio-logos', 'public');
         }
 
-        Radio::create($data);
+        $radio = Radio::create($data);
 
-        return redirect()->route('radios.index')->with('success', 'Radio station created successfully.');
+        // Create default teams for the radio
+        $defaultTeams = [
+            ['name' => 'Technical Team', 'description' => 'Technical operations and maintenance'],
+            ['name' => 'Content Team', 'description' => 'Content creation and programming'],
+            ['name' => 'Marketing Team', 'description' => 'Promotion and audience engagement'],
+        ];
+
+        foreach ($defaultTeams as $teamData) {
+            Team::create(array_merge($teamData, ['radio_id' => $radio->id]));
+        }
+
+        return redirect()->route('radios.index')->with('success', 'Radio station created successfully with default teams.');
     }
-
 
     public function edit(Radio $radio)
     {
-        // Get users with role 'manager' who don't manage other radios or manage this radio
-        $managers = User::whereHas('role', fn($q) => $q->where('name', 'manager'))
-            ->where(function ($query) use ($radio) {
-                $query->whereDoesntHave('radio')  // users who manage no radio
-                    ->orWhere('radio_id', $radio->id);  // or manage this radio
-            })
+        // Get the current manager
+        $currentManager = $radio->manager;
+
+        // Get available managers (managers without radios)
+        $availableManagers = User::whereHas('role', fn($q) => $q->where('name', 'manager'))
+            ->whereDoesntHave('managedRadio')
             ->get();
+
+        // Combine current manager with available managers, ensuring no duplicates
+        $managers = $availableManagers->push($currentManager)->unique('id');
 
         return view('radios.edit', compact('radio', 'managers'));
     }
@@ -95,7 +104,7 @@ class RadioController extends Controller
             'address' => 'nullable|string|max:255',
             'Country' => 'required|string|max:255',
             'manager_id' => 'required|exists:users,id',
-            'status' => 'required|in:active,inactive',
+            'status' => 'required|in:active,desactive', // Fixed: changed 'inactive' to 'desactive'
             'logo' => 'nullable|image|mimes:jpeg,png,jpg,gif|max:8048',
             'remove_logo' => 'nullable|in:0,1',
         ]);
@@ -110,13 +119,11 @@ class RadioController extends Controller
             'status',
         ]);
 
-        // Handle logo removal
         if ($request->input('remove_logo') == '1' && $radio->logo_path) {
             Storage::disk('public')->delete($radio->logo_path);
             $data['logo_path'] = null;
         }
 
-        // Handle logo upload
         if ($request->hasFile('logo')) {
             if ($radio->logo_path) {
                 Storage::disk('public')->delete($radio->logo_path);
@@ -126,17 +133,21 @@ class RadioController extends Controller
 
         $radio->update($data);
 
-        return redirect()->route('radios.index')->with('success', 'Radio station updated successfully.');
+        return back()->with('success', 'Radio station updated successfully.');
     }
 
     public function destroy(Radio $radio)
     {
-        // Delete logo if exists
-        if ($radio->logo) {
-            Storage::disk('public')->delete($radio->logo);
+        if ($radio->logo_path) {
+            Storage::disk('public')->delete($radio->logo_path);
         }
+
+        // Delete associated teams
+        $radio->teams()->delete();
+
         $radio->delete();
-        return redirect()->route('radios.index')->with('success', 'Radio station deleted successfully.');
+
+        return redirect()->route('radios.index')->with('success', 'Radio station and associated teams deleted successfully.');
     }
 
     public function changeStatus(Radio $radio)
@@ -148,38 +159,56 @@ class RadioController extends Controller
         return back()->with('success', 'Radio status updated successfully.');
     }
 
-    public function show(Radio $radio)
+    public function show(Radio $radio, Request $request)
     {
-        $radio->load(['manager', 'team', 'team.role']);
+        $radio->load(['manager', 'teams.users', 'teams.users.role']);
 
-        // Get active members of this radio
-        $activeMembers = $radio->team()->where('status', 'active')->get();
+        // Base query for radio members
+        $membersQuery = User::where('radio_id', $radio->id);
 
-        // Get inactive users who were previously members of this radio
-        $inactiveMembers = User::where('radio_id', $radio->id)
-            ->where('status', 'desactive')
-            ->get();
+        // Apply search filter
+        if ($request->filled('search')) {
+            $search = $request->input('search');
+            $membersQuery->where(function ($q) use ($search) {
+                $q->where('name', 'like', "%{$search}%")
+                    ->orWhere('email', 'like', "%{$search}%");
+            });
+        }
 
-        // Get users who don't belong to any radio (potential new members)
-        $availableUsers = User::whereNull('radio_id')
-            ->where('id', '!=', $radio->manager_id) // Exclude the manager
-            ->where('status', 'active')
-            ->get();
+        // Apply role filter
+        if ($request->filled('role')) {
+            $membersQuery->where('role_id', $request->input('role'));
+        }
 
-        // Get all roles except admin (or filter as needed)
-        $roles = Role::whereNotIn('name', ['admin']) // Exclude admin role if needed
+        // Apply status filter
+        if ($request->filled('status')) {
+            $membersQuery->where('status', $request->input('status'));
+        }
+
+        // Get filtered members
+        $filteredMembers = $membersQuery->with(['role', 'teams'])->get();
+
+        // Other data
+        $availableUsers = User::where(function ($q) use ($radio) {
+            $q->whereNull('radio_id')
+                ->orWhere(function ($q2) use ($radio) {
+                    $q2->where('radio_id', $radio->id)
+                        ->where('status', 'desactive');
+                });
+        })->where('id', '!=', $radio->manager_id)->get();
+
+        $roles = Role::where('radio_id', $radio->id)
             ->orderBy('name')
             ->get();
 
         return view('radios.show', compact(
             'radio',
-            'activeMembers',
-            'inactiveMembers',
+            'filteredMembers',
             'availableUsers',
             'roles'
         ));
     }
-    
+
     public function addMember(Request $request, Radio $radio)
     {
         $request->validate([
@@ -188,8 +217,7 @@ class RadioController extends Controller
 
         $user = User::findOrFail($request->user_id);
 
-        // Check if user is already active in another radio
-        if ($user->radio_id && $user->status === 'active') {
+        if ($user->radio_id && $user->radio_id != $radio->id && $user->status === 'active') {
             return back()->with('error', 'This user is already active in another radio station.');
         }
 
@@ -198,7 +226,7 @@ class RadioController extends Controller
             'status' => 'active'
         ]);
 
-        return back()->with('success', 'Member added successfully.');
+        return back()->with('success', $user->status === 'desactive' ? 'Member reactivated successfully.' : 'Member added successfully.');
     }
 
     public function removeMember(Request $request, Radio $radio)
@@ -209,20 +237,40 @@ class RadioController extends Controller
 
         $user = User::findOrFail($request->user_id);
 
-        // Verify the user belongs to this radio
         if ($user->radio_id != $radio->id) {
             return back()->with('error', 'This user does not belong to your radio station.');
         }
 
-        // Don't allow removing the manager
         if ($user->id === $radio->manager_id) {
             return back()->with('error', 'You cannot remove the manager of the radio station.');
         }
 
-        $user->update([
-            'status' => 'desactive'
-        ]);
+        // Remove user from all teams in this radio
+        $radio->teams()->each(function ($team) use ($user) {
+            $team->users()->detach($user->id);
+        });
+
+        $user->update(['status' => 'desactive']);
 
         return back()->with('success', 'Member removed and deactivated successfully.');
+    }
+
+    public function showAddMemberForm(Radio $radio)
+    {
+        $radio->load('users', 'manager');
+
+        // Users who are not active in any radio OR were inactive in this radio
+        $availableUsers = User::where(function ($q) use ($radio) {
+            $q->whereNull('radio_id')
+                ->orWhere(function ($q2) use ($radio) {
+                    $q2->where('radio_id', $radio->id)
+                        ->where('status', 'desactive');
+                });
+        })->get();
+
+        // All roles except admin
+        $roles = Role::whereNotIn('name', ['admin'])->orderBy('name')->get();
+
+        return view('radios.add_member', compact('radio', 'availableUsers', 'roles'));
     }
 }

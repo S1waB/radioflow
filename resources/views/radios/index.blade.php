@@ -45,7 +45,7 @@
                 <select name="status" class="block w-full pl-3 pr-10 py-2 text-base border border-gray-300 focus:outline-none focus:ring-primary focus:border-primary sm:text-sm rounded-md">
                     <option value="">All Statuses</option>
                     <option value="active" {{ request('status') == 'active' ? 'selected' : '' }}>Active</option>
-                    <option value="inactive" {{ request('status') == 'inactive' ? 'selected' : '' }}>Inactive</option>
+                    <option value="desactive" {{ request('status') == 'desactive' ? 'selected' : '' }}>Inactive</option>
                 </select>
             </div>
 
@@ -99,7 +99,7 @@
                             {{ $radio->manager ? $radio->manager->name : 'N/A' }}
                         </td>
                         <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                            {{ $radio->team->count() }}
+                            {{ $radio->teams->count() }} <!-- Fixed: changed 'team' to 'teams' -->
                         </td>
                         <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
                             <span class="px-2 py-1 text-xs rounded-full {{ $radio->status === 'active' ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800' }}">
@@ -127,7 +127,7 @@
                                     @csrf
                                     @method('PUT')
                                     <button type="submit"
-                                        class="text-{{ $radio->status === 'active' ? 'yellow' : 'green' }}-600 hover:text-{{ $radio->status === 'active' ? 'yellow' : 'green' }}-900"
+                                        class="{{ $radio->status === 'active' ? 'text-yellow-600 hover:text-yellow-900' : 'text-green-600 hover:text-green-900' }}"
                                         title="{{ $radio->status === 'active' ? 'Deactivate' : 'Activate' }}">
                                         <i class="fas {{ $radio->status === 'active' ? 'fa-toggle-on' : 'fa-toggle-off' }}"></i>
                                     </button>
@@ -149,7 +149,7 @@
                     </tr>
                     @empty
                     <tr>
-                        <td colspan="6" class="px-6 py-4 text-center text-sm text-gray-500">
+                        <td colspan="7" class="px-6 py-4 text-center text-sm text-gray-500"> <!-- Fixed: colspan from 6 to 7 -->
                             No radio stations found matching your criteria.
                         </td>
                     </tr>

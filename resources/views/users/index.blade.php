@@ -1,18 +1,15 @@
 @extends('layouts.app')
+@section('title', 'User Management')
 @section('content')
 @include('layouts.header')
-@section('title', 'User Management')
 
 <div class="container mx-auto px-4 py-6">
     <!-- Header and Create Button -->
     <div class="flex flex-col md:flex-row justify-between items-start md:items-center mb-6">
-        <h1 class="text-2xl font-bold" style="color: #0a2164">User Management</h1>
+        <h1 class="text-2xl font-bold text-gray-800">User Management</h1>
         <a href="{{ route('users.create') }}"
-            class="inline-flex items-center gap-2 px-4 py-2 rounded-2xl  text-white text-sm font-medium hover: transition-all shadow-md mt-4 md:mt-0" style="background-color: #0a2164">
-            <svg xmlns="http://www.w3.org/2000/svg" class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4" />
-            </svg>
-            Add New User
+            class="inline-flex items-center gap-2 px-4 py-2 rounded-md bg-blue-600 text-white text-sm font-medium hover:bg-blue-700 transition-all shadow-md mt-4 md:mt-0">
+            <i class="fas fa-plus mr-1"></i> Add New User
         </a>
     </div>
 
@@ -27,13 +24,13 @@
                     </div>
                     <input type="text" name="search" placeholder="Search by name, email, phone..."
                         value="{{ request('search') }}"
-                        class="block w-full pl-10 pr-3 py-2 border border-gray-300 rounded-md leading-5 bg-white placeholder-gray-500 focus:outline-none focus:ring-primary focus:border-primary sm:text-sm">
+                        class="block w-full pl-10 pr-3 py-2 border border-gray-300 rounded-md leading-5 bg-white placeholder-gray-500 focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm">
                 </div>
             </div>
 
             <!-- Role Filter -->
             <div>
-                <select name="role" class="block w-full pl-3 pr-10 py-2 text-base border border-gray-300 focus:outline-none focus:ring-primary focus:border-primary sm:text-sm rounded-md">
+                <select name="role" class="block w-full pl-3 pr-10 py-2 text-base border border-gray-300 focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm rounded-md">
                     <option value="">All Roles</option>
                     @foreach($roles as $role)
                     <option value="{{ $role->id }}" {{ request('role') == $role->id ? 'selected' : '' }}>
@@ -45,10 +42,10 @@
 
             <!-- Status Filter -->
             <div>
-                <select name="status" class="block w-full pl-3 pr-10 py-2 text-base border border-gray-300 focus:outline-none focus:ring-primary focus:border-primary sm:text-sm rounded-md">
+                <select name="status" class="block w-full pl-3 pr-10 py-2 text-base border border-gray-300 focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm rounded-md">
                     <option value="">All Statuses</option>
                     <option value="active" {{ request('status') == 'active' ? 'selected' : '' }}>Active</option>
-                    <option value="inactive" {{ request('status') == 'inactive' ? 'selected' : '' }}>Inactive</option>
+                    <option value="desactive" {{ request('status') == 'desactive' ? 'selected' : '' }}>Inactive</option>
                 </select>
             </div>
 
@@ -63,6 +60,7 @@
             </div>
         </form>
     </div>
+    
     <!-- Users Table -->
     <div class="bg-white rounded-lg shadow overflow-hidden">
         <div class="overflow-x-auto">
@@ -73,6 +71,7 @@
                         <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Email</th>
                         <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Role</th>
                         <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Radio</th>
+                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Teams</th>
                         <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Status</th>
                         <th class="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">Actions</th>
                     </tr>
@@ -104,14 +103,34 @@
                             {{ $user->email }}
                         </td>
                         <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                            <span class="px-2 py-1 text-xs rounded-full 
-                                {{ $user->role->name === 'admin' ? 'bg-purple-100 text-purple-800' : 
-                                   ($user->role->name === 'directeur' ? 'bg-blue-100 text-blue-800' : 'bg-green-100 text-green-800') }}">
-                                {{ $user->role->name }}
-                            </span>
+                            @if($user->role)
+                                <span class="px-2 py-1 text-xs rounded-full 
+                                    {{ $user->role->name === 'admin' ? 'bg-purple-100 text-purple-800' : 
+                                       ($user->role->name === 'directeur' ? 'bg-blue-100 text-blue-800' : 'bg-green-100 text-green-800') }}">
+                                    {{ $user->role->name }}
+                                </span>
+                            @else
+                                <span class="px-2 py-1 text-xs rounded-full bg-gray-100 text-gray-800">
+                                    No Role
+                                </span>
+                            @endif
                         </td>
                         <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
                             {{ $user->radio?->name ?? 'N/A' }}
+                        </td>
+                        <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                            @if($user->teams->count() > 0)
+                                <div class="flex flex-wrap gap-1">
+                                    @foreach($user->teams as $team)
+                                        <span class="px-2 py-1 text-xs bg-blue-100 text-blue-800 rounded-full" 
+                                              title="{{ $team->radio->name ?? 'No radio assigned' }}">
+                                            {{ $team->name }}
+                                        </span>
+                                    @endforeach
+                                </div>
+                            @else
+                                <span class="text-gray-400">No teams</span>
+                            @endif
                         </td>
                         <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
                             <span class="px-2 py-1 text-xs rounded-full 
@@ -130,7 +149,7 @@
                                     @csrf
                                     @method('PUT')
                                     <button type="submit"
-                                        class="text-{{ $user->status === 'active' ? 'yellow' : 'green' }}-600 hover:text-{{ $user->status === 'active' ? 'yellow' : 'green' }}-900 ml-2"
+                                        class="{{ $user->status === 'active' ? 'text-yellow-600 hover:text-yellow-900' : 'text-green-600 hover:text-green-900' }} ml-2"
                                         title="{{ $user->status === 'active' ? 'Deactivate' : 'Activate' }}">
                                         <i class="fas {{ $user->status === 'active' ? 'fa-toggle-on' : 'fa-toggle-off' }}"></i>
                                     </button>
@@ -150,7 +169,7 @@
                     </tr>
                     @empty
                     <tr>
-                        <td colspan="6" class="px-6 py-4 text-center text-sm text-gray-500">
+                        <td colspan="7" class="px-6 py-4 text-center text-sm text-gray-500">
                             No users found matching your criteria.
                         </td>
                     </tr>

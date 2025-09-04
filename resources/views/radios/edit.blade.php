@@ -84,10 +84,13 @@
                             required>
                             <option value="">Select a Manager</option>
                             @foreach ($managers as $manager)
+                            @if($manager) <!-- Check if manager exists -->
                             <option value="{{ $manager->id }}"
                                 {{ old('manager_id', $radio->manager_id) == $manager->id ? 'selected' : '' }}>
                                 {{ $manager->name }}
+                                @if($manager->id === $radio->manager_id) (Current) @endif
                             </option>
+                            @endif
                             @endforeach
                         </select>
                         @error('manager_id')

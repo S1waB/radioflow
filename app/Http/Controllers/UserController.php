@@ -5,6 +5,7 @@ namespace App\Http\Controllers;
 use App\Models\User;
 use App\Models\Role;
 use App\Models\Radio;
+use App\Models\Team;
 use Illuminate\Http\Request;
 use Illuminate\Validation\Rule;
 use Illuminate\Support\Facades\Hash;
@@ -14,7 +15,7 @@ class UserController extends Controller
 {
     public function index()
     {
-        $query = User::with(['role', 'radio'])->latest();
+        $query = User::with(['role', 'radio', 'teams.radio'])->latest();
 
         // Search filter
         if ($search = request('search')) {
@@ -46,10 +47,12 @@ class UserController extends Controller
     {
         $roles = Role::orderBy('hierarchy_level')->get();
         $radios = Radio::where('status', 'active')->get();
+        $teams = Team::with('radio')->get();
+        
         // Get radio_id from query string if present
         $radio_id = request()->query('radio_id');
 
-        return view('users.create', compact('roles', 'radios', 'radio_id'));
+        return view('users.create', compact('roles', 'radios', 'teams', 'radio_id'));
     }
 
     public function store(Request $request)
@@ -63,7 +66,9 @@ class UserController extends Controller
             'bio' => 'nullable|string|max:1000',
             'role_id' => 'required|exists:roles,id',
             'radio_id' => 'nullable|exists:radios,id',
-            'status' => 'required|in:active,inactive',
+            'teams' => 'nullable|array',
+            'teams.*' => 'exists:teams,id',
+            'status' => 'required|in:active,desactive', // Fixed: changed 'inactive' to 'desactive'
             'profile_photo' => 'nullable|image|mimes:jpeg,png,jpg,gif|max:2048'
         ]);
 
@@ -74,28 +79,39 @@ class UserController extends Controller
             'address',
             'bio',
             'role_id',
-            'radio_id'
+            'radio_id',
+            'status' // Added status to data array
         ]);
 
         $data['password'] = Hash::make($request->password);
-        $data['status'] = $request->status === 'inactive' ? 'desactive' : 'active';
 
         if ($request->hasFile('profile_photo')) {
             $path = $request->file('profile_photo')->store('profile-photos', 'public');
             $data['profile_photo_path'] = $path;
         }
 
-        User::create($data);
+        $user = User::create($data);
 
-        return redirect()->route('users.index')->with('success', 'User created successfully.');
+        // Assign teams (only if they belong to the selected radio)
+        if ($request->has('teams') && $request->radio_id) {
+            $validTeams = Team::where('radio_id', $request->radio_id)
+                ->whereIn('id', $request->teams)
+                ->pluck('id')
+                ->toArray();
+            
+            $user->teams()->sync($validTeams);
+        }
+
+        return redirect()->back()->with('success', 'User created successfully.');
     }
-
 
     public function edit(User $user)
     {
         $roles = Role::orderBy('hierarchy_level')->get();
         $radios = Radio::where('status', 'active')->get();
-        return view('users.edit', compact('user', 'roles', 'radios'));
+        $teams = Team::with('radio')->get();
+        
+        return view('users.edit', compact('user', 'roles', 'radios', 'teams'));
     }
 
     public function update(Request $request, User $user)
@@ -108,9 +124,19 @@ class UserController extends Controller
             'bio' => 'nullable|string|max:1000',
             'role_id' => 'required|exists:roles,id',
             'radio_id' => 'nullable|exists:radios,id',
-            'status' => 'required|in:active,inactive', // Match your form values
+            'teams' => 'nullable|array',
+            'teams.*' => 'exists:teams,id',
+            'status' => 'required|in:active,desactive', // Fixed: changed 'inactive' to 'desactive'
             'profile_photo' => 'nullable|image|mimes:jpeg,png,jpg,gif|max:2048'
         ]);
+
+        // Handle password update if provided
+        if ($request->filled('password')) {
+            $request->validate([
+                'password' => 'required|string|min:8|confirmed'
+            ]);
+            $validated['password'] = Hash::make($request->password);
+        }
 
         // Handle profile photo upload
         if ($request->hasFile('profile_photo')) {
@@ -124,19 +150,35 @@ class UserController extends Controller
             $validated['profile_photo_path'] = $path;
         }
 
-        // Convert status to match database if needed
-        if ($validated['status'] === 'inactive') {
-            $validated['status'] = 'desactive';
-        }
-
         $user->update($validated);
+
+        // Update team assignments
+        if ($request->has('teams') && $request->radio_id) {
+            $validTeams = Team::where('radio_id', $request->radio_id)
+                ->whereIn('id', $request->teams)
+                ->pluck('id')
+                ->toArray();
+            
+            $user->teams()->sync($validTeams);
+        } else {
+            $user->teams()->detach();
+        }
 
         return redirect()->route('users.index')->with('success', 'User updated successfully.');
     }
 
     public function destroy(User $user)
     {
+        // Delete profile photo if exists
+        if ($user->profile_photo_path) {
+            Storage::disk('public')->delete($user->profile_photo_path);
+        }
+        
+        // Detach from teams before deletion
+        $user->teams()->detach();
+        
         $user->delete();
+        
         return redirect()->route('users.index')->with('success', 'User deleted successfully.');
     }
 
@@ -145,21 +187,20 @@ class UserController extends Controller
         $user->update([
             'status' => $user->status === 'active' ? 'desactive' : 'active'
         ]);
-        $user->save();
+        
         return back()->with('success', 'User status updated successfully');
     }
 
-public function updateRole(Request $request, User $user)
-{
-    $request->validate([
-        'role_id' => 'nullable|exists:roles,id'
-    ]);
+    public function updateRole(Request $request, User $user)
+    {
+        $request->validate([
+            'role_id' => 'required|exists:roles,id' // Changed from nullable to required
+        ]);
 
-    $user->update([
-        'role_id' => $request->role_id ?: null
-    ]);
+        $user->update([
+            'role_id' => $request->role_id
+        ]);
 
-    return back()->with('success', 'User role updated successfully.');
-}
-
+        return back()->with('success', 'User role updated successfully.');
+    }
 }

@@ -13,10 +13,14 @@ return new class extends Migration
     {
         Schema::create('roles', function (Blueprint $table) {
             $table->id();
-            $table->string('name')->unique(); // e.g. admin, directeur, animateur
+            $table->unsignedBigInteger('radio_id'); // new column
+            $table->string('name'); // unique per radio only
             $table->text('description')->nullable();
             $table->unsignedInteger('hierarchy_level')->default(7); // 1 is highest (admin)
             $table->timestamps();
+
+            $table->foreign('radio_id')->references('id')->on('radios')->onDelete('cascade');
+            $table->unique(['radio_id', 'name']); // unique per radio
         });
     }
 

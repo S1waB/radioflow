@@ -29,7 +29,10 @@
                         class="text-white hover:bg-white hover:bg-opacity-20 px-3 py-2 rounded-md">
                         <i class="fas fa-broadcast-tower mr-2"></i> Radios
                     </x-nav-link>
-
+                    <x-nav-link href="{{ route('tasks.index') }}" :active="request()->routeIs('tasks.*')"
+                        class="text-white hover:bg-white hover:bg-opacity-20 px-3 py-2 rounded-md">
+                        <i class="fas fa-tasks mr-2"></i> Tasks
+                    </x-nav-link>
                     <x-nav-link href="{{ route('roles.index') }}" :active="request()->routeIs('roles.*')"
                         class="text-white hover:bg-white hover:bg-opacity-20 px-3 py-2 rounded-md">
                         <i class="fas fa-user-tag mr-2"></i> Roles
@@ -122,12 +125,15 @@
                 class="text-white hover:bg-white hover:bg-opacity-20 block px-3 py-2 rounded-md">
                 <i class="fas fa-users mr-2"></i> Users
             </x-responsive-nav-link>
-
             <x-responsive-nav-link href="{{ route('radios.index') }}"
                 :active="request()->routeIs('radios.*')"
                 class="text-white hover:bg-white hover:bg-opacity-20 block px-3 py-2 rounded-md">
                 <i class="fas fa-broadcast-tower mr-2"></i> Radios
             </x-responsive-nav-link>
+            <x-nav-link href="{{ route('tasks.index') }}" :active="request()->routeIs('tasks.*')"
+                class="text-white hover:bg-white hover:bg-opacity-20 px-3 py-2 rounded-md">
+                <i class="fas fa-tasks mr-2"></i> Tasks
+            </x-nav-link>
 
             <x-responsive-nav-link href="{{ route('roles.index') }}"
                 :active="request()->routeIs('roles.*')"
