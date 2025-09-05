@@ -10,8 +10,7 @@ class Season extends Model
     use HasFactory;
 
     protected $fillable = [
-        'radio_id',
-        'name',
+        'emission_id',
         'number', // e.g., Season 1, 2...
         'description',
     ];

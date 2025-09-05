@@ -18,7 +18,7 @@ class Emission extends Model
         'type',
         'duration_minutes',
         'description',
-        'emission_docs',
+        'logo_path',
     ];
 
     // Relation to the Radio
@@ -34,5 +34,26 @@ class Emission extends Model
     public function animateur()
     {
         return $this->belongsTo(User::class, 'animateur_id');
+    }
+    public function members()
+    {
+        return $this->belongsToMany(User::class, 'emission_user', 'emission_id', 'user_id')
+            ->withTimestamps();
+    }
+
+    public function materials()
+    {
+        return $this->hasMany(Material::class);
+    }
+
+    public function tasks()
+    {
+        return $this->belongsToMany(Task::class, 'emission_task');
+    }
+  
+
+    public function episodes()
+    {
+        return $this->hasManyThrough(Episode::class, Season::class);
     }
 }

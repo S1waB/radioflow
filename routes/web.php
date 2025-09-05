@@ -130,7 +130,7 @@ Route::middleware([
         Route::delete('/{radio}/guests/{guest}', [GuestController::class, 'destroy'])->name('guests.destroy');
 
         // Emissions CRUD
-         Route::resource('{radio}/emissions', EmissionController::class);
+        Route::resource('{radio}/emissions', EmissionController::class);
 
         // Assign members to emission
         Route::post('emissions/{emission}/members', [EmissionController::class, 'addMember'])->name('emissions.members.add');
@@ -139,29 +139,24 @@ Route::middleware([
         // Create tasks for emission members
         Route::resource('emissions.tasks', TaskController::class)->shallow();
 
-        // Seasons & Episodes nested under emission
-        Route::prefix('emissions/{emission}')->group(function () {
 
-            // Seasons CRUD
-            Route::resource('seasons', SeasonController::class);
+        // Seasons nested under emission
+        Route::resource('emissions.seasons', SeasonController::class);
 
-            // Episodes nested under season
-            Route::prefix('seasons/{season}')->group(function () {
-                Route::resource('episodes', EpisodeController::class);
+        // Episodes nested under season
+        Route::resource('emissions.seasons.episodes', EpisodeController::class);
 
-                // Guests, Songs, Materials handled inside EpisodeController
-                Route::post('episodes/{episode}/guests', [EpisodeController::class, 'addGuest'])->name('episodes.guests.add');
-                Route::delete('episodes/{episode}/guests/{guest}', [EpisodeController::class, 'removeGuest'])->name('episodes.guests.remove');
+        // Episode related actions
+        Route::post('episodes/{episode}/guests', [EpisodeController::class, 'addGuest'])->name('episodes.guests.add');
+        Route::delete('episodes/{episode}/guests/{guest}', [EpisodeController::class, 'removeGuest'])->name('episodes.guests.remove');
 
-                Route::post('episodes/{episode}/songs', [EpisodeController::class, 'addSong'])->name('episodes.songs.add');
-                Route::delete('episodes/{episode}/songs/{song}', [EpisodeController::class, 'removeSong'])->name('episodes.songs.remove');
+        Route::post('episodes/{episode}/songs', [EpisodeController::class, 'addSong'])->name('episodes.songs.add');
+        Route::delete('episodes/{episode}/songs/{song}', [EpisodeController::class, 'removeSong'])->name('episodes.songs.remove');
 
-                Route::post('episodes/{episode}/materials', [EpisodeController::class, 'addMaterial'])->name('episodes.materials.add');
-                Route::delete('episodes/{episode}/materials/{material}', [EpisodeController::class, 'removeMaterial'])->name('episodes.materials.remove');
-            });
-        });
-
+        Route::post('episodes/{episode}/materials', [EpisodeController::class, 'addMaterial'])->name('episodes.materials.add');
+        Route::delete('episodes/{episode}/materials/{material}', [EpisodeController::class, 'removeMaterial'])->name('episodes.materials.remove');
     });
+
 
 
     // Team Management

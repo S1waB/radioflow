@@ -24,10 +24,13 @@ class Episode extends Model
         return $this->belongsTo(Season::class);
     }
 
+    public function emission()
+    {
+        return $this->season->emission(); // optional helper
+    }
+
     public function animateur()
     {
         return $this->belongsTo(User::class, 'animateur_id');
     }
-
-   
 }

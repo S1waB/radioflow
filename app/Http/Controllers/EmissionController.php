@@ -40,8 +40,17 @@ class EmissionController extends Controller
     // Show emission details
     public function show(Radio $radio, Emission $emission)
     {
-        $emission->load(['seasons.episodes', 'members', 'animateur', 'materials']);
-        return view('emissions.show', compact('radio', 'emission'));
+
+
+        // Get all seasons of this emission
+        $seasons = $emission->seasons()->with('episodes')->orderBy('created_at', 'desc')->get();
+
+        // Get the last season (most recently created)
+        $lastSeason = $seasons->first(); // null if no season exists
+        // Optional: flatten all episodes in one collection
+        $episodes = $seasons->flatMap->episodes;
+
+        return view('emissions.show', compact('emission', 'seasons', 'episodes', 'lastSeason'));
     }
 
     // Store new emission
@@ -62,9 +71,16 @@ class EmissionController extends Controller
 
         $validated['radio_id'] = $radio->id;
 
-        Emission::create($validated);
+        $emission = Emission::create($validated);
 
-        return back()->with('success', 'Emission created successfully!');
+ 
+        // Automatically create the first season
+        $emission->seasons()->create([
+            'number' => 1,
+            // description is optional
+        ]);
+
+        return back()->with('success', 'Emission created successfully with Season 1!');
     }
 
     // Update emission
@@ -76,7 +92,7 @@ class EmissionController extends Controller
             'type' => 'nullable|string|max:255',
             'duration_minutes' => 'nullable|integer',
             'description' => 'nullable|string',
-            'logo' => 'nullable|image|max:2048',
+            'logo_path' => 'nullable|image|max:2048',
         ]);
 
         if ($request->hasFile('logo')) {

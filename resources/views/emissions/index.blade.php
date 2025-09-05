@@ -44,6 +44,7 @@
         <table class="min-w-full divide-y divide-gray-200">
             <thead class="bg-gray-50">
                 <tr>
+                    <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Logo</th>
                     <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Name</th>
                     <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Type</th>
                     <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Animateur</th>
@@ -54,6 +55,19 @@
             <tbody class="bg-white divide-y divide-gray-200">
                 @forelse($emissions as $emission)
                 <tr>
+                    <td class="px-6 py-4 whitespace-nowrap">
+                        <div class="flex-shrink-0 h-10 w-10">
+                            @if($emission->logo_path)
+                            <img class="h-10 w-10 rounded-full object-cover"
+                                src="{{ asset('storage/' . $emission->logo_path) }}"
+                                alt="{{ $emission->name }}">
+                            @else
+                            <div class="h-10 w-10 rounded-full bg-gray-300 text-gray-700 flex items-center justify-center font-semibold text-sm uppercase">
+                                {{ strtoupper(substr($emission->name, 0, 1)) }}
+                            </div>
+                            @endif
+                        </div>
+                    </td>
                     <td class="px-6 py-4 whitespace-nowrap">{{ $emission->name }}</td>
                     <td class="px-6 py-4 whitespace-nowrap">{{ $emission->type }}</td>
                     <td class="px-6 py-4 whitespace-nowrap">{{ $emission->animateur->name }}</td>
@@ -128,9 +142,10 @@
         <div class="bg-white w-11/12 md:w-2/3 lg:w-1/2 rounded-md shadow-lg p-6 relative">
             <button @click="closeModals()" class="absolute top-3 right-3 text-gray-500 hover:text-gray-700"><i class="fas fa-times"></i></button>
             <h3 class="text-lg font-semibold mb-4">Edit Emission</h3>
-            <form :action="editAction" method="POST" enctype="multipart/form-data">
+            <form :action="`{{ route('radios.emissions.update', [$radio, '___id___']) }}`.replace('___id___', editData.id)" method="POST" enctype="multipart/form-data">
                 @csrf
                 @method('PUT')
+
                 <div class="mb-4">
                     <label class="block text-sm font-medium text-gray-700 mb-1">Name *</label>
                     <input type="text" name="name" x-model="editData.name" class="block w-full border rounded-md p-2" required>
@@ -186,35 +201,45 @@
 </div>
 
 <script>
-function emissionsPage() {
-    return {
-        showCreate: false,
-        showEdit: false,
-        showDelete: false,
-        editData: {},
-        deleteData: {},
-        createAction: "{{ route('radios.emissions.store', $radio) }}",
-        editAction: '',
-        deleteAction: '',
+    function emissionsPage() {
+        return {
+            showCreate: false,
+            showEdit: false,
+            showDelete: false,
+            editData: {},
+            deleteData: {},
+            createAction: "{{ route('radios.emissions.store', $radio) }}",
+            editAction: '',
+            deleteAction: '',
 
-        openEditModal(id, name, type, animateur_id, duration, description) {
-            this.editData = { id, name, type, animateur_id, duration_minutes: duration, description };
-            this.editAction = `/radios/{{ $radio->id }}/emissions/${id}`;
-            this.showEdit = true;
-        },
-        openDeleteModal(id, name) {
-            this.deleteData = { id, name };
-            this.deleteAction = `/radios/{{ $radio->id }}/emissions/${id}`;
-            this.showDelete = true;
-        },
-        closeModals() {
-            this.showCreate = false;
-            this.showEdit = false;
-            this.showDelete = false;
-            this.editData = {};
-            this.deleteData = {};
+            openEditModal(id, name, type, animateur_id, duration, description) {
+                this.editData = {
+                    id,
+                    name,
+                    type,
+                    animateur_id,
+                    duration_minutes: duration,
+                    description
+                };
+                this.editAction = `/radios/{{ $radio->id }}/emissions/${id}`;
+                this.showEdit = true;
+            },
+            openDeleteModal(id, name) {
+                this.deleteData = {
+                    id,
+                    name
+                };
+    this.deleteAction = "{{ route('radios.emissions.destroy', ['radio' => $radio->id, 'emission' => 'EMISSION_ID']) }}".replace('EMISSION_ID', id);
+                this.showDelete = true;
+            },
+            closeModals() {
+                this.showCreate = false;
+                this.showEdit = false;
+                this.showDelete = false;
+                this.editData = {};
+                this.deleteData = {};
+            }
         }
     }
-}
 </script>
 @endsection

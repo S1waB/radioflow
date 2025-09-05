@@ -15,8 +15,6 @@ return new class extends Migration
             $table->id();
             $table->foreignId('emission_id')->constrained()->cascadeOnDelete();
             $table->unsignedInteger('number'); // starts at 1 and increments
-            $table->date('starts_at')->nullable();
-            $table->date('ends_at')->nullable();
             $table->timestamps();
 
             $table->unique(['emission_id', 'number']);
