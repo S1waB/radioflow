@@ -50,7 +50,7 @@ class EmissionController extends Controller
         // Optional: flatten all episodes in one collection
         $episodes = $seasons->flatMap->episodes;
 
-        return view('emissions.show', compact('emission', 'seasons', 'episodes', 'lastSeason'));
+        return view('emissions.show', compact('radio','emission', 'seasons', 'episodes', 'lastSeason'));
     }
 
     // Store new emission
@@ -73,7 +73,7 @@ class EmissionController extends Controller
 
         $emission = Emission::create($validated);
 
- 
+
         // Automatically create the first season
         $emission->seasons()->create([
             'number' => 1,
@@ -113,4 +113,17 @@ class EmissionController extends Controller
         $emission->delete();
         return back()->with('success', 'Emission deleted successfully!');
     }
+
+    // app/Http/Controllers/EmissionController.php
+
+   public function team(Radio $radio, Emission $emission)
+{
+    // Ensure the emission belongs to this radio
+    if ($emission->radio_id !== $radio->id) {
+        abort(404);
+    }
+
+    $members = $emission->members; // your belongsToMany relation
+    return view('emissions.team', compact('radio', 'emission', 'members'));
+}
 }

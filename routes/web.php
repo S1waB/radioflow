@@ -133,11 +133,12 @@ Route::middleware([
         Route::resource('{radio}/emissions', EmissionController::class);
 
         // Assign members to emission
-        Route::post('emissions/{emission}/members', [EmissionController::class, 'addMember'])->name('emissions.members.add');
-        Route::delete('emissions/{emission}/members/{user}', [EmissionController::class, 'removeMember'])->name('emissions.members.remove');
+        Route::post('{radio}/emissions/{emission}/members', [EmissionController::class, 'addMember'])->name('emissions.members.add');
+        Route::delete('{radio}/emissions/{emission}/members/{user}', [EmissionController::class, 'removeMember'])->name('emissions.members.remove');
+        Route::get('{radio}/emissions/{emission}/team', [EmissionController::class, 'team'])->name('emissions.team');
 
         // Create tasks for emission members
-        Route::resource('emissions.tasks', TaskController::class)->shallow();
+                Route::get('{radio}/emissions/{emission}/tasks', [TaskController::class, 'team'])->name('emissions.tasks');
 
 
         // Seasons nested under emission
@@ -147,6 +148,8 @@ Route::middleware([
         Route::resource('emissions.seasons.episodes', EpisodeController::class);
 
         // Episode related actions
+        Route::post('emissions/{emission}/episodes', [EpisodeController::class, 'store'])->name('episodes.store');
+
         Route::post('episodes/{episode}/guests', [EpisodeController::class, 'addGuest'])->name('episodes.guests.add');
         Route::delete('episodes/{episode}/guests/{guest}', [EpisodeController::class, 'removeGuest'])->name('episodes.guests.remove');
 

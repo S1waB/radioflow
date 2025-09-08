@@ -11,12 +11,13 @@ class Episode extends Model
 
     protected $fillable = [
         'season_id',
-        'name',
+        'time',
         'number', // e.g., Episode 1, 2...
         'duration_minutes',
         'description',
         'animateur_id',
         'episode_docs',
+        'conducteur_path',
     ];
 
     public function season()

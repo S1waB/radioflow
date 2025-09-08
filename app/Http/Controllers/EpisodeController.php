@@ -3,6 +3,7 @@
 namespace App\Http\Controllers;
 
 use App\Models\Episode;
+use App\Models\Emission;
 use App\Models\Season;
 use App\Models\Guest;
 use App\Models\Song;
@@ -15,11 +16,11 @@ class EpisodeController extends Controller
     // ------------------- EPISODES CRUD -------------------
     public function index(Season $season)
     {
-        $episodes = $season->episodes()->with(['songs','guests','materials'])->get();
-        return view('episodes.index', compact('season','episodes'));
+        $episodes = $season->episodes()->with(['songs', 'guests', 'materials'])->get();
+        return view('episodes.index', compact('season', 'episodes'));
     }
 
-    public function store(Request $request, Season $season)
+    public function store(Request $request, Emission $emission, Season $season)
     {
         $validated = $request->validate([
             'title' => 'required|string|max:255',
@@ -30,18 +31,19 @@ class EpisodeController extends Controller
         ]);
 
         if ($request->hasFile('conducteur')) {
-            $validated['conducteur_path'] = $request->file('conducteur')->store('conducteurs','public');
+            $validated['conducteur_path'] = $request->file('conducteur')->store('conducteurs', 'public');
         }
 
-        $season->episodes()->create($validated);
+        $episode = $season->episodes()->create($validated);
 
-        return back()->with('success','Episode created successfully!');
+        return redirect()->back()->with('success', 'Episode created successfully!');
     }
+
 
     public function show(Season $season, Episode $episode)
     {
-        $episode->load(['songs','guests','materials']);
-        return view('episodes.show', compact('season','episode'));
+        $episode->load(['songs', 'guests', 'materials']);
+        return view('episodes.show', compact('season', 'episode'));
     }
 
     public function update(Request $request, Season $season, Episode $episode)
@@ -58,12 +60,12 @@ class EpisodeController extends Controller
             if ($episode->conducteur_path) {
                 Storage::disk('public')->delete($episode->conducteur_path);
             }
-            $validated['conducteur_path'] = $request->file('conducteur')->store('conducteurs','public');
+            $validated['conducteur_path'] = $request->file('conducteur')->store('conducteurs', 'public');
         }
 
         $episode->update($validated);
 
-        return back()->with('success','Episode updated successfully!');
+        return back()->with('success', 'Episode updated successfully!');
     }
 
     public function destroy(Season $season, Episode $episode)
@@ -73,7 +75,7 @@ class EpisodeController extends Controller
         }
         $episode->delete();
 
-        return back()->with('success','Episode deleted successfully!');
+        return back()->with('success', 'Episode deleted successfully!');
     }
 
     // ------------------- EPISODE GUESTS -------------------
@@ -85,13 +87,13 @@ class EpisodeController extends Controller
 
         $episode->guests()->syncWithoutDetaching([$validated['guest_id']]);
 
-        return back()->with('success','Guest added to episode!');
+        return back()->with('success', 'Guest added to episode!');
     }
 
     public function removeGuest(Season $season, Episode $episode, Guest $guest)
     {
         $episode->guests()->detach($guest->id);
-        return back()->with('success','Guest removed from episode!');
+        return back()->with('success', 'Guest removed from episode!');
     }
 
     // ------------------- EPISODE SONGS -------------------
@@ -103,13 +105,13 @@ class EpisodeController extends Controller
 
         $episode->songs()->syncWithoutDetaching([$validated['song_id']]);
 
-        return back()->with('success','Song added to episode!');
+        return back()->with('success', 'Song added to episode!');
     }
 
     public function removeSong(Season $season, Episode $episode, Song $song)
     {
         $episode->songs()->detach($song->id);
-        return back()->with('success','Song removed from episode!');
+        return back()->with('success', 'Song removed from episode!');
     }
 
     // ------------------- MATERIALS -------------------
@@ -120,14 +122,14 @@ class EpisodeController extends Controller
         ]);
 
         $file = $request->file('file');
-        $path = $file->store('materials','public');
+        $path = $file->store('materials', 'public');
 
         $episode->materials()->create([
             'file_path' => $path,
             'type' => $file->getClientOriginalExtension(),
         ]);
 
-        return back()->with('success','Material uploaded!');
+        return back()->with('success', 'Material uploaded!');
     }
 
     public function removeMaterial(Season $season, Episode $episode, Material $material)
@@ -135,6 +137,6 @@ class EpisodeController extends Controller
         Storage::disk('public')->delete($material->file_path);
         $material->delete();
 
-        return back()->with('success','Material deleted!');
+        return back()->with('success', 'Material deleted!');
     }
 }
