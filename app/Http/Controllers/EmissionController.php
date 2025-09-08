@@ -3,6 +3,7 @@
 namespace App\Http\Controllers;
 
 use App\Models\Emission;
+use App\Models\Episode;
 use App\Models\Radio;
 use App\Models\User;
 use Illuminate\Http\Request;
@@ -38,20 +39,36 @@ class EmissionController extends Controller
 
 
     // Show emission details
+    // Show emission details
     public function show(Radio $radio, Emission $emission)
     {
+        $seasons = $emission->seasons()->orderBy('created_at', 'desc')->get();
+        $lastSeason = $seasons->first();
 
+        $episodesQuery = Episode::whereIn('season_id', $seasons->pluck('id'));
 
-        // Get all seasons of this emission
-        $seasons = $emission->seasons()->with('episodes')->orderBy('created_at', 'desc')->get();
+        // --- Search filter ---
+        if ($search = request('search')) {
+            $episodesQuery->where(function ($q) use ($search) {
+                $q->where('description', 'like', "%{$search}%")
+                    ->orWhere('number', 'like', "%{$search}%");
+            });
+        }
 
-        // Get the last season (most recently created)
-        $lastSeason = $seasons->first(); // null if no season exists
-        // Optional: flatten all episodes in one collection
-        $episodes = $seasons->flatMap->episodes;
+        // --- Season filter ---
+        if ($seasonId = request('season_id')) {
+            $episodesQuery->where('season_id', $seasonId);
+        }
 
-        return view('emissions.show', compact('radio','emission', 'seasons', 'episodes', 'lastSeason'));
+        $episodes = $episodesQuery->orderBy('number', 'asc')->paginate(10)->withQueryString();
+
+        $animateurs = User::whereHas('role', function ($query) use ($radio) {
+            $query->where('radio_id', $radio->id)->where('name', 'animateur');
+        })->get();
+
+        return view('emissions.show', compact('radio', 'emission', 'seasons', 'episodes', 'lastSeason', 'animateurs'));
     }
+
 
     // Store new emission
     public function store(Request $request, Radio $radio)
@@ -116,14 +133,14 @@ class EmissionController extends Controller
 
     // app/Http/Controllers/EmissionController.php
 
-   public function team(Radio $radio, Emission $emission)
-{
-    // Ensure the emission belongs to this radio
-    if ($emission->radio_id !== $radio->id) {
-        abort(404);
-    }
+    public function team(Radio $radio, Emission $emission)
+    {
+        // Ensure the emission belongs to this radio
+        if ($emission->radio_id !== $radio->id) {
+            abort(404);
+        }
 
-    $members = $emission->members; // your belongsToMany relation
-    return view('emissions.team', compact('radio', 'emission', 'members'));
-}
+        $members = $emission->members; // your belongsToMany relation
+        return view('emissions.team', compact('radio', 'emission', 'members'));
+    }
 }

@@ -10,52 +10,93 @@ use App\Models\Song;
 use App\Models\Material;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Storage;
+use Carbon\Carbon;
 
 class EpisodeController extends Controller
 {
-    // ------------------- EPISODES CRUD -------------------
-    public function index(Season $season)
-    {
-        $episodes = $season->episodes()->with(['songs', 'guests', 'materials'])->get();
-        return view('episodes.index', compact('season', 'episodes'));
+    // ------------------- EPISODES LIST -------------------
+   public function index($radioId, $emissionId)
+{
+    $emission = Emission::with('seasons')->findOrFail($emissionId);
+    $seasons = $emission->seasons()->orderBy('number', 'desc')->get();
+
+    $episodes = Episode::with('season')
+        ->whereHas('season', function($q) use ($emissionId) {
+            $q->where('emission_id', $emissionId);
+        });
+
+    // Filter by season if provided
+    if ($seasonId = request('season_id')) {
+        $episodes->where('season_id', $seasonId);
     }
 
+    // Filter by episode number if needed
+    if ($number = request('number')) {
+        $episodes->where('number', $number);
+    }
+
+    $episodes = $episodes->orderBy('number', 'asc')->paginate(10)->withQueryString();
+
+    return view('episodes.index', compact('emission', 'episodes', 'seasons'));
+}
+
+
+    // ------------------- CREATE EPISODE -------------------
     public function store(Request $request, Emission $emission, Season $season)
     {
         $validated = $request->validate([
-            'title' => 'required|string|max:255',
-            'aired_on' => 'nullable|date',
-            'duration_minutes' => 'nullable|integer',
+            'aired_on' => 'required|date', // datetime-local input
+            'duration_minutes' => 'required|integer|min:1',
             'description' => 'nullable|string',
-            'conducteur' => 'nullable|file|mimes:pdf,doc,docx|max:5120',
+            'conducteur' => 'nullable|file|mimes:pdf,doc,docx',
         ]);
 
+        // Parse datetime-local into date and time
+        $dateTime = \Carbon\Carbon::parse($request->input('aired_on'));
+        $validated['aired_on'] = $dateTime->toDateString(); // YYYY-MM-DD
+        $validated['time'] = $dateTime->format('H:i:s');   // HH:MM:SS
+
+        // Automatically set episode number
+        $validated['number'] = $season->episodes()->count() + 1;
+
+        // Upload conducteur file
         if ($request->hasFile('conducteur')) {
             $validated['conducteur_path'] = $request->file('conducteur')->store('conducteurs', 'public');
         }
 
-        $episode = $season->episodes()->create($validated);
+        $season->episodes()->create($validated);
 
         return redirect()->back()->with('success', 'Episode created successfully!');
     }
 
-
+    // ------------------- SHOW EPISODE (FOR EDIT MODAL) -------------------
     public function show(Season $season, Episode $episode)
     {
         $episode->load(['songs', 'guests', 'materials']);
-        return view('episodes.show', compact('season', 'episode'));
+        return view('emissions.episode', compact('season', 'episode'));
     }
 
+
+   
+
+
+    // ------------------- UPDATE EPISODE -------------------
     public function update(Request $request, Season $season, Episode $episode)
     {
         $validated = $request->validate([
-            'title' => 'required|string|max:255',
-            'aired_on' => 'nullable|date',
-            'duration_minutes' => 'nullable|integer',
+            'season_id' => 'required|exists:seasons,id',
+            'aired_on' => 'required|date',
+            'duration_minutes' => 'required|integer|min:10',
             'description' => 'nullable|string',
             'conducteur' => 'nullable|file|mimes:pdf,doc,docx|max:5120',
         ]);
 
+        // Parse datetime
+        $aired = Carbon::parse($validated['aired_on']);
+        $validated['aired_on'] = $aired->toDateString();
+        $validated['time'] = $aired->format('H:i:s');
+
+        // Upload conducteur
         if ($request->hasFile('conducteur')) {
             if ($episode->conducteur_path) {
                 Storage::disk('public')->delete($episode->conducteur_path);
@@ -65,78 +106,20 @@ class EpisodeController extends Controller
 
         $episode->update($validated);
 
-        return back()->with('success', 'Episode updated successfully!');
+        return redirect()->back()->with('success', 'Episode updated successfully!');
     }
 
-    public function destroy(Season $season, Episode $episode)
-    {
-        if ($episode->conducteur_path) {
-            Storage::disk('public')->delete($episode->conducteur_path);
-        }
-        $episode->delete();
-
-        return back()->with('success', 'Episode deleted successfully!');
+    // ------------------- DELETE EPISODE -------------------
+    public function destroy(Episode $episode)
+{
+    // Delete conducteur file if exists
+    if ($episode->conducteur_path) {
+        Storage::disk('public')->delete($episode->conducteur_path);
     }
 
-    // ------------------- EPISODE GUESTS -------------------
-    public function addGuest(Request $request, Season $season, Episode $episode)
-    {
-        $validated = $request->validate([
-            'guest_id' => 'required|exists:guests,id',
-        ]);
+    $episode->delete();
 
-        $episode->guests()->syncWithoutDetaching([$validated['guest_id']]);
+    return redirect()->back()->with('success', 'Episode deleted successfully!');
+}
 
-        return back()->with('success', 'Guest added to episode!');
-    }
-
-    public function removeGuest(Season $season, Episode $episode, Guest $guest)
-    {
-        $episode->guests()->detach($guest->id);
-        return back()->with('success', 'Guest removed from episode!');
-    }
-
-    // ------------------- EPISODE SONGS -------------------
-    public function addSong(Request $request, Season $season, Episode $episode)
-    {
-        $validated = $request->validate([
-            'song_id' => 'required|exists:songs,id',
-        ]);
-
-        $episode->songs()->syncWithoutDetaching([$validated['song_id']]);
-
-        return back()->with('success', 'Song added to episode!');
-    }
-
-    public function removeSong(Season $season, Episode $episode, Song $song)
-    {
-        $episode->songs()->detach($song->id);
-        return back()->with('success', 'Song removed from episode!');
-    }
-
-    // ------------------- MATERIALS -------------------
-    public function addMaterial(Request $request, Season $season, Episode $episode)
-    {
-        $validated = $request->validate([
-            'file' => 'required|file|max:10240',
-        ]);
-
-        $file = $request->file('file');
-        $path = $file->store('materials', 'public');
-
-        $episode->materials()->create([
-            'file_path' => $path,
-            'type' => $file->getClientOriginalExtension(),
-        ]);
-
-        return back()->with('success', 'Material uploaded!');
-    }
-
-    public function removeMaterial(Season $season, Episode $episode, Material $material)
-    {
-        Storage::disk('public')->delete($material->file_path);
-        $material->delete();
-
-        return back()->with('success', 'Material deleted!');
-    }
 }
