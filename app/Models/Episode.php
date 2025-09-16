@@ -11,6 +11,7 @@ class Episode extends Model
 
     protected $fillable = [
         'season_id',
+        'aired_on',
         'time',
         'number', // e.g., Episode 1, 2...
         'duration_minutes',
